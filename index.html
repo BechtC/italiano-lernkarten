@@ -1,1 +1,126 @@
-PLACEHOLDER
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Italiano Lernkarten</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #1a1a1a; color: #eee; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 1rem; }
+    h1 { margin: 1rem 0; font-size: 1.5rem; }
+    .card { width: 90%; max-width: 400px; min-height: 200px; background: #2a2a2a; border-radius: 16px; padding: 2rem; margin: 1rem 0; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; cursor: pointer; transition: transform 0.2s; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    .card:hover { transform: scale(1.02); }
+    .front { font-size: 1.6rem; font-weight: 600; }
+    .phonetic { font-size: 1rem; color: #aaa; margin: 0.5rem 0; font-style: italic; }
+    .back { font-size: 1.3rem; color: #8fbc8f; display: none; }
+    .card.flipped .front, .card.flipped .phonetic { display: none; }
+    .card.flipped .back { display: block; }
+    .buttons { display: flex; gap: 0.5rem; margin: 1rem 0; flex-wrap: wrap; justify-content: center; }
+    button { padding: 0.6rem 1rem; border: none; border-radius: 8px; font-size: 0.95rem; cursor: pointer; background: #3a3a3a; color: #eee; }
+    button:hover { background: #4a4a4a; }
+    button.again { background: #8b3a3a; }
+    button.hard { background: #8b6a3a; }
+    button.good { background: #3a6a3a; }
+    button.easy { background: #3a5a8b; }
+    .stats { margin-top: 1rem; font-size: 0.9rem; color: #aaa; }
+    .info { margin: 0.5rem 0; font-size: 0.85rem; color: #888; }
+  </style>
+</head>
+<body>
+  <h1>Italiano Lernkarten</h1>
+  <p class="info">Erste Session · Klicke die Karte zum Umdrehen · Bewertung speichert Fortschritt</p>
+  <div id="card" class="card" onclick="flip()">
+    <div class="front" id="front"></div>
+    <div class="phonetic" id="phonetic"></div>
+    <div class="back" id="back"></div>
+  </div>
+  <div class="buttons">
+    <button class="again" onclick="rate(0)">Nochmal</button>
+    <button class="hard" onclick="rate(1)">Schwer</button>
+    <button class="good" onclick="rate(2)">Gut</button>
+    <button class="easy" onclick="rate(3)">Leicht</button>
+  </div>
+  <div class="stats" id="stats"></div>
+
+  <script>
+    const cards = [
+      { it: "Buongiorno", phon: "[buon-dschor-no]", de: "Guten Tag" },
+      { it: "Come stai?", phon: "[ko-me stai]", de: "Wie geht’s? (locker)" },
+      { it: "Come va?", phon: "[ko-me va]", de: "Wie geht’s? (neutral)" },
+      { it: "Io mi chiamo Cristiano", phon: "[i-o mi kja-mo kris-tja-no]", de: "Ich heiße Cristiano" },
+      { it: "Come ti chiami?", phon: "[ko-me ti kja-mi]", de: "Wie heißt du?" },
+      { it: "Vorrei un caffè, per favore", phon: "[vor-rei un kaf-fè, per fa-vo-re]", de: "Ich hätte gern einen Kaffee, bitte" },
+      { it: "Di dove sei?", phon: "[di do-ve sei]", de: "Woher bist du?" },
+      { it: "Piacere", phon: "[pja-tsche-re]", de: "Freut mich / Nett, dich kennenzulernen" },
+      { it: "Sono di Stoccarda", phon: "[so-no di stok-kar-da]", de: "Ich komme aus Stuttgart" },
+      { it: "Dove abiti?", phon: "[do-ve a-bi-ti]", de: "Wo wohnst du?" },
+      { it: "Sono di Ludwigsburg", phon: "[so-no di lud-vigs-burg]", de: "Ich komme aus Ludwigsburg" },
+      { it: "Quanti anni hai?", phon: "[kwan-ti an-ni ai]", de: "Wie alt bist du?" },
+      { it: "Ho trentotto anni", phon: "[o tren-tot-to an-ni]", de: "Ich bin 38 Jahre alt" },
+      { it: "E tu?", phon: "[e tu]", de: "Und du?" },
+      { it: "Che lavoro fai?", phon: "[ke la-vo-ro fai]", de: "Was arbeitest du?" }
+    ];
+
+    let progress = JSON.parse(localStorage.getItem('italiano-progress') || '{}');
+    let currentIndex = 0;
+    let flipped = false;
+
+    function init() {
+      cards.forEach((c, i) => {
+        if (!progress[i]) progress[i] = { interval: 0, repetition: 0, efactor: 2.5, due: Date.now() };
+      });
+      nextCard();
+    }
+
+    function nextCard() {
+      const now = Date.now();
+      let due = cards.map((_, i) => i).filter(i => progress[i].due <= now);
+      if (due.length === 0) due = cards.map((_, i) => i); // show all if none due
+      currentIndex = due[Math.floor(Math.random() * due.length)];
+      showCard();
+      updateStats();
+    }
+
+    function showCard() {
+      const c = cards[currentIndex];
+      document.getElementById('front').textContent = c.it;
+      document.getElementById('phonetic').textContent = c.phon;
+      document.getElementById('back').textContent = c.de;
+      document.getElementById('card').classList.remove('flipped');
+      flipped = false;
+    }
+
+    function flip() {
+      document.getElementById('card').classList.toggle('flipped');
+      flipped = !flipped;
+    }
+
+    function rate(quality) {
+      // quality: 0=again, 1=hard, 2=good, 3=easy  (simplified SM-2)
+      const p = progress[currentIndex];
+      if (quality < 2) {
+        p.repetition = 0;
+        p.interval = 0;
+      } else {
+        if (p.repetition === 0) p.interval = 1;
+        else if (p.repetition === 1) p.interval = 3;
+        else p.interval = Math.round(p.interval * p.efactor);
+        p.repetition += 1;
+      }
+      p.efactor = Math.max(1.3, p.efactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)));
+      const days = quality === 0 ? 0 : quality === 1 ? 0.5 : p.interval;
+      p.due = Date.now() + days * 24 * 60 * 60 * 1000;
+      localStorage.setItem('italiano-progress', JSON.stringify(progress));
+      nextCard();
+    }
+
+    function updateStats() {
+      const now = Date.now();
+      const dueCount = cards.filter((_, i) => progress[i].due <= now).length;
+      document.getElementById('stats').textContent = `${cards.length} Karten · ${dueCount} fällig`;
+    }
+
+    init();
+  </script>
+</body>
+</html>
